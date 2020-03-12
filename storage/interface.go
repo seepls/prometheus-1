@@ -60,10 +60,7 @@ type Queryable interface {
 // time range.
 type Querier interface {
 	// Select returns a set of series that matches the given label matchers.
-	Select(*SelectParams, ...*labels.Matcher) (SeriesSet, Warnings, error)
-
-	// SelectSorted returns a sorted set of series that matches the given label matchers.
-	SelectSorted(*SelectParams, ...*labels.Matcher) (SeriesSet, Warnings, error)
+	Select(SelectParams, ...*labels.Matcher) (SeriesSet, Warnings, error)
 
 	// LabelValues returns all potential values for a label name.
 	// It is not safe to use the strings beyond the lifefime of the querier.
@@ -76,10 +73,15 @@ type Querier interface {
 	Close() error
 }
 
-// SelectParams specifies parameters passed to data selections.
-type SelectParams struct {
+// SelectRange specifies time parameters passed to data selections.
+type SelectRange struct {
 	Start int64 // Start time in milliseconds for this select.
 	End   int64 // End time in milliseconds for this select.
+}
+
+// SelectParams specifies parameters passed to data selections.
+type SelectParams struct {
+	TimeRange *SelectRange // If non-nil it means certain time to select.
 
 	Step int64  // Query step size in milliseconds.
 	Func string // String representation of surrounding function or aggregation.
@@ -87,6 +89,19 @@ type SelectParams struct {
 	Grouping []string // List of label names used in aggregation.
 	By       bool     // Indicate whether it is without or by.
 	Range    int64    // Range vector selector range in milliseconds.
+
+	SeriesSorted bool // If enabled, selected series has to be sorted.
+}
+
+// IsEmpty returns true if SelectParams is considered empty.
+func (s SelectParams) IsEmpty() bool {
+	return s.TimeRange == nil &&
+		s.Step == 0 &&
+		s.Func == "" &&
+		len(s.Grouping) == 0 &&
+		!s.By &&
+		s.Range == 0 &&
+		!s.SeriesSorted
 }
 
 // QueryableFunc is an adapter to allow the use of ordinary functions as

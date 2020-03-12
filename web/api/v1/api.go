@@ -531,7 +531,7 @@ func (api *API) series(r *http.Request) apiFuncResult {
 	var sets []storage.SeriesSet
 	var warnings storage.Warnings
 	for _, mset := range matcherSets {
-		s, wrn, err := q.Select(nil, mset...) //TODO
+		s, wrn, err := q.Select(storage.SelectParams{}, mset...)
 		warnings = append(warnings, wrn...)
 		if err != nil {
 			return apiFuncResult{nil, &apiError{errorExec, err}, warnings, nil}
@@ -1161,10 +1161,11 @@ func (api *API) remoteRead(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		for i, query := range req.Queries {
-			err := api.remoteReadQuery(ctx, query, externalLabels, func(querier storage.Querier, selectParams *storage.SelectParams, filteredMatchers []*labels.Matcher) error {
-				// The streaming API provides sorted series.
-				// TODO(bwplotka): Handle warnings via query log.
-				set, _, err := querier.SelectSorted(selectParams, filteredMatchers...)
+			err := api.remoteReadQuery(ctx, query, externalLabels, func(querier storage.Querier, selectParams storage.SelectParams, filteredMatchers []*labels.Matcher) error {
+				// The streaming API has to provide the series sorted.
+				selectParams.SeriesSorted = true
+
+				set, _, err := querier.Select(selectParams, filteredMatchers...)
 				if err != nil {
 					return err
 				}
@@ -1195,7 +1196,7 @@ func (api *API) remoteRead(w http.ResponseWriter, r *http.Request) {
 			Results: make([]*prompb.QueryResult, len(req.Queries)),
 		}
 		for i, query := range req.Queries {
-			err := api.remoteReadQuery(ctx, query, externalLabels, func(querier storage.Querier, selectParams *storage.SelectParams, filteredMatchers []*labels.Matcher) error {
+			err := api.remoteReadQuery(ctx, query, externalLabels, func(querier storage.Querier, selectParams storage.SelectParams, filteredMatchers []*labels.Matcher) error {
 				set, _, err := querier.Select(selectParams, filteredMatchers...)
 				if err != nil {
 					return err
@@ -1254,7 +1255,7 @@ func filterExtLabelsFromMatchers(pbMatchers []*prompb.LabelMatcher, externalLabe
 	return filteredMatchers, nil
 }
 
-func (api *API) remoteReadQuery(ctx context.Context, query *prompb.Query, externalLabels map[string]string, seriesHandleFn func(querier storage.Querier, selectParams *storage.SelectParams, filteredMatchers []*labels.Matcher) error) error {
+func (api *API) remoteReadQuery(ctx context.Context, query *prompb.Query, externalLabels map[string]string, seriesHandleFn func(querier storage.Querier, selectParams storage.SelectParams, filteredMatchers []*labels.Matcher) error) error {
 	filteredMatchers, err := filterExtLabelsFromMatchers(query.Matchers, externalLabels)
 	if err != nil {
 		return err
@@ -1265,14 +1266,14 @@ func (api *API) remoteReadQuery(ctx context.Context, query *prompb.Query, extern
 		return err
 	}
 
-	var selectParams *storage.SelectParams
+	var selectParams storage.SelectParams
 	if query.Hints != nil {
-		selectParams = &storage.SelectParams{
+		selectParams.TimeRange = &storage.SelectRange{
 			Start: query.Hints.StartMs,
 			End:   query.Hints.EndMs,
-			Step:  query.Hints.StepMs,
-			Func:  query.Hints.Func,
 		}
+		selectParams.Step = query.Hints.StepMs
+		selectParams.Func = query.Hints.Func
 	}
 
 	defer func() {

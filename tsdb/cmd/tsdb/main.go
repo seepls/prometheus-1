@@ -34,6 +34,7 @@ import (
 	"github.com/go-kit/kit/log"
 	"github.com/pkg/errors"
 	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/storage"
 	"github.com/prometheus/prometheus/tsdb"
 	"github.com/prometheus/prometheus/tsdb/chunks"
 	tsdb_errors "github.com/prometheus/prometheus/tsdb/errors"
@@ -616,7 +617,7 @@ func dumpSamples(db *tsdb.DBReadOnly, mint, maxt int64) (err error) {
 		err = merr.Err()
 	}()
 
-	ss, ws, err := q.Select(nil, labels.MustNewMatcher(labels.MatchRegexp, "", ".*"))
+	ss, ws, err := q.Select(storage.SelectParams{}, labels.MustNewMatcher(labels.MatchRegexp, "", ".*"))
 	if err != nil {
 		return err
 	}

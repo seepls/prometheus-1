@@ -175,15 +175,12 @@ type errQuerier struct {
 	err error
 }
 
-func (q *errQuerier) Select(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+func (q *errQuerier) Select(storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
 	return errSeriesSet{err: q.err}, nil, q.err
 }
-func (q *errQuerier) SelectSorted(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
-	return errSeriesSet{err: q.err}, nil, q.err
-}
-func (*errQuerier) LabelValues(name string) ([]string, storage.Warnings, error) { return nil, nil, nil }
-func (*errQuerier) LabelNames() ([]string, storage.Warnings, error)             { return nil, nil, nil }
-func (*errQuerier) Close() error                                                { return nil }
+func (*errQuerier) LabelValues(string) ([]string, storage.Warnings, error) { return nil, nil, nil }
+func (*errQuerier) LabelNames() ([]string, storage.Warnings, error)        { return nil, nil, nil }
+func (*errQuerier) Close() error                                           { return nil }
 
 // errSeriesSet implements storage.SeriesSet which always returns error.
 type errSeriesSet struct {
@@ -227,30 +224,29 @@ func TestQueryError(t *testing.T) {
 // paramCheckerQuerier implements storage.Querier which checks the start and end times
 // in params.
 type paramCheckerQuerier struct {
-	start    int64
-	end      int64
-	grouping []string
-	by       bool
-	selRange int64
-	function string
+	start        int64
+	end          int64
+	grouping     []string
+	by           bool
+	selRange     int64
+	function     string
+	seriesSorted bool
 
 	t *testing.T
 }
 
-func (q *paramCheckerQuerier) Select(sp *storage.SelectParams, m ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
-	return q.SelectSorted(sp, m...)
-}
-func (q *paramCheckerQuerier) SelectSorted(sp *storage.SelectParams, _ ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
-	testutil.Equals(q.t, q.start, sp.Start)
-	testutil.Equals(q.t, q.end, sp.End)
+func (q *paramCheckerQuerier) Select(sp storage.SelectParams, _ ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+	testutil.Equals(q.t, q.start, sp.TimeRange.Start)
+	testutil.Equals(q.t, q.end, sp.TimeRange.End)
 	testutil.Equals(q.t, q.grouping, sp.Grouping)
 	testutil.Equals(q.t, q.by, sp.By)
 	testutil.Equals(q.t, q.selRange, sp.Range)
 	testutil.Equals(q.t, q.function, sp.Func)
+	testutil.Equals(q.t, q.seriesSorted, sp.SeriesSorted)
 
 	return errSeriesSet{err: nil}, nil, nil
 }
-func (*paramCheckerQuerier) LabelValues(name string) ([]string, storage.Warnings, error) {
+func (*paramCheckerQuerier) LabelValues(string) ([]string, storage.Warnings, error) {
 	return nil, nil, nil
 }
 func (*paramCheckerQuerier) LabelNames() ([]string, storage.Warnings, error) { return nil, nil, nil }

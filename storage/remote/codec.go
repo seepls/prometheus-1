@@ -79,22 +79,24 @@ func EncodeReadResponse(resp *prompb.ReadResponse, w http.ResponseWriter) error 
 }
 
 // ToQuery builds a Query proto.
-func ToQuery(from, to int64, matchers []*labels.Matcher, p *storage.SelectParams) (*prompb.Query, error) {
+func ToQuery(from, to int64, matchers []*labels.Matcher, p storage.SelectParams) (*prompb.Query, error) {
 	ms, err := toLabelMatchers(matchers)
 	if err != nil {
 		return nil, err
 	}
 
 	var rp *prompb.ReadHints
-	if p != nil {
+	if !p.IsEmpty() {
 		rp = &prompb.ReadHints{
 			StepMs:   p.Step,
 			Func:     p.Func,
-			StartMs:  p.Start,
-			EndMs:    p.End,
 			Grouping: p.Grouping,
 			By:       p.By,
 			RangeMs:  p.Range,
+		}
+		if p.TimeRange != nil {
+			rp.StartMs = p.TimeRange.Start
+			rp.EndMs = p.TimeRange.End
 		}
 	}
 

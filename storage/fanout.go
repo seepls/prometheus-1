@@ -221,20 +221,16 @@ func NewMergeQuerier(primaryQuerier Querier, queriers []Querier) Querier {
 }
 
 // Select returns a set of series that matches the given label matchers.
-func (q *mergeQuerier) Select(params *SelectParams, matchers ...*labels.Matcher) (SeriesSet, Warnings, error) {
-	if len(q.queriers) != 1 {
-		// We need to sort for NewMergeSeriesSet to work.
-		return q.SelectSorted(params, matchers...)
+func (q *mergeQuerier) Select(params SelectParams, matchers ...*labels.Matcher) (SeriesSet, Warnings, error) {
+	if len(q.queriers) == 1 {
+		return q.queriers[0].Select(params, matchers...)
 	}
-	return q.queriers[0].Select(params, matchers...)
-}
 
-// SelectSorted returns a set of sorted series that matches the given label matchers.
-func (q *mergeQuerier) SelectSorted(params *SelectParams, matchers ...*labels.Matcher) (SeriesSet, Warnings, error) {
-	seriesSets := make([]SeriesSet, 0, len(q.queriers))
-	var warnings Warnings
-
-	var priErr error = nil
+	var (
+		seriesSets = make([]SeriesSet, 0, len(q.queriers))
+		warnings   Warnings
+		priErr     error
+	)
 	type queryResult struct {
 		qr          Querier
 		set         SeriesSet
@@ -242,9 +238,12 @@ func (q *mergeQuerier) SelectSorted(params *SelectParams, matchers ...*labels.Ma
 		selectError error
 	}
 	queryResultChan := make(chan *queryResult)
+
+	// We need to sort for NewMergeSeriesSet to work.
+	params.SeriesSorted = true
 	for _, querier := range q.queriers {
 		go func(qr Querier) {
-			set, wrn, err := qr.SelectSorted(params, matchers...)
+			set, wrn, err := qr.Select(params, matchers...)
 			queryResultChan <- &queryResult{qr: qr, set: set, wrn: wrn, selectError: err}
 		}(querier)
 	}

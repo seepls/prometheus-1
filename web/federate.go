@@ -81,9 +81,8 @@ func (h *Handler) federation(w http.ResponseWriter, req *http.Request) {
 
 	vec := make(promql.Vector, 0, 8000)
 
-	params := &storage.SelectParams{
-		Start: mint,
-		End:   maxt,
+	params := storage.SelectParams{
+		TimeRange: &storage.SelectRange{Start: mint, End: maxt},
 	}
 
 	var sets []storage.SeriesSet

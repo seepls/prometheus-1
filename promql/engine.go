@@ -656,10 +656,9 @@ func (ng *Engine) populateSeries(ctx context.Context, q storage.Queryable, s *pa
 	parser.Inspect(s.Expr, func(node parser.Node, path []parser.Node) error {
 		var set storage.SeriesSet
 		var wrn storage.Warnings
-		params := &storage.SelectParams{
-			Start: timestamp.FromTime(s.Start),
-			End:   timestamp.FromTime(s.End),
-			Step:  durationToInt64Millis(s.Interval),
+		params := storage.SelectParams{
+			TimeRange: &storage.SelectRange{Start: timestamp.FromTime(s.Start), End: timestamp.FromTime(s.End)},
+			Step:      durationToInt64Millis(s.Interval),
 		}
 
 		// We need to make sure we select the timerange selected by the subquery.
@@ -668,17 +667,17 @@ func (ng *Engine) populateSeries(ctx context.Context, q storage.Queryable, s *pa
 		// from end also.
 		subqOffset := ng.cumulativeSubqueryOffset(path)
 		offsetMilliseconds := durationMilliseconds(subqOffset)
-		params.Start = params.Start - offsetMilliseconds
+		params.TimeRange.Start = params.TimeRange.Start - offsetMilliseconds
 
 		switch n := node.(type) {
 		case *parser.VectorSelector:
 			if evalRange == 0 {
-				params.Start = params.Start - durationMilliseconds(ng.lookbackDelta)
+				params.TimeRange.Start = params.TimeRange.Start - durationMilliseconds(ng.lookbackDelta)
 			} else {
 				params.Range = durationMilliseconds(evalRange)
 				// For all matrix queries we want to ensure that we have (end-start) + range selected
 				// this way we have `range` data before the start time
-				params.Start = params.Start - durationMilliseconds(evalRange)
+				params.TimeRange.Start = params.TimeRange.Start - durationMilliseconds(evalRange)
 				evalRange = 0
 			}
 
@@ -686,8 +685,8 @@ func (ng *Engine) populateSeries(ctx context.Context, q storage.Queryable, s *pa
 			params.By, params.Grouping = extractGroupsFromPath(path)
 			if n.Offset > 0 {
 				offsetMilliseconds := durationMilliseconds(n.Offset)
-				params.Start = params.Start - offsetMilliseconds
-				params.End = params.End - offsetMilliseconds
+				params.TimeRange.Start = params.TimeRange.Start - offsetMilliseconds
+				params.TimeRange.End = params.TimeRange.End - offsetMilliseconds
 			}
 
 			set, wrn, err = querier.Select(params, n.LabelMatchers...)

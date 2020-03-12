@@ -488,14 +488,14 @@ func setupRemote(s storage.Storage) *httptest.Server {
 				return
 			}
 
-			var selectParams *storage.SelectParams
+			var selectParams storage.SelectParams
 			if query.Hints != nil {
-				selectParams = &storage.SelectParams{
+				selectParams.TimeRange = &storage.SelectRange{
 					Start: query.Hints.StartMs,
 					End:   query.Hints.EndMs,
-					Step:  query.Hints.StepMs,
-					Func:  query.Hints.Func,
 				}
+				selectParams.Step = query.Hints.StepMs
+				selectParams.Func = query.Hints.Func
 			}
 
 			querier, err := s.Querier(r.Context(), query.StartTimestampMs, query.EndTimestampMs)
@@ -1615,7 +1615,7 @@ func TestSampledReadEndpoint(t *testing.T) {
 	matcher2, err := labels.NewMatcher(labels.MatchEqual, "d", "e")
 	testutil.Ok(t, err)
 
-	query, err := remote.ToQuery(0, 1, []*labels.Matcher{matcher1, matcher2}, &storage.SelectParams{Step: 0, Func: "avg"})
+	query, err := remote.ToQuery(0, 1, []*labels.Matcher{matcher1, matcher2}, storage.SelectParams{Step: 0, Func: "avg"})
 	testutil.Ok(t, err)
 
 	req := &prompb.ReadRequest{Queries: []*prompb.Query{query}}
@@ -1714,19 +1714,17 @@ func TestStreamReadEndpoint(t *testing.T) {
 	matcher3, err := labels.NewMatcher(labels.MatchEqual, "foo", "bar1")
 	testutil.Ok(t, err)
 
-	query1, err := remote.ToQuery(0, 14400001, []*labels.Matcher{matcher1, matcher2}, &storage.SelectParams{
-		Step:  1,
-		Func:  "avg",
-		Start: 0,
-		End:   14400001,
+	query1, err := remote.ToQuery(0, 14400001, []*labels.Matcher{matcher1, matcher2}, storage.SelectParams{
+		Step:      1,
+		Func:      "avg",
+		TimeRange: &storage.SelectRange{Start: 0, End: 14400001},
 	})
 	testutil.Ok(t, err)
 
-	query2, err := remote.ToQuery(0, 14400001, []*labels.Matcher{matcher1, matcher3}, &storage.SelectParams{
-		Step:  1,
-		Func:  "avg",
-		Start: 0,
-		End:   14400001,
+	query2, err := remote.ToQuery(0, 14400001, []*labels.Matcher{matcher1, matcher3}, storage.SelectParams{
+		Step:      1,
+		Func:      "avg",
+		TimeRange: &storage.SelectRange{Start: 0, End: 14400001},
 	})
 	testutil.Ok(t, err)
 

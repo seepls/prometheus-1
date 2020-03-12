@@ -147,12 +147,7 @@ func BenchmarkQuerierSelect(b *testing.B) {
 
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {
-					var ss storage.SeriesSet
-					if sorted {
-						ss, _, err = q.SelectSorted(nil, matcher)
-					} else {
-						ss, _, err = q.Select(nil, matcher)
-					}
+					ss, _, err := q.Select(storage.SelectParams{SeriesSorted: sorted}, matcher)
 					testutil.Ok(b, err)
 					for ss.Next() {
 					}

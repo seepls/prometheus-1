@@ -117,7 +117,7 @@ func TestExternalLabelsQuerierSelect(t *testing.T) {
 		},
 	}
 	want := newSeriesSetFilter(mockSeriesSet{}, q.externalLabels)
-	have, _, err := q.Select(nil, matchers...)
+	have, _, err := q.Select(storage.SelectParams{}, matchers...)
 	if err != nil {
 		t.Error(err)
 	}
@@ -242,7 +242,7 @@ type mockSeriesSet struct {
 	storage.SeriesSet
 }
 
-func (mockQuerier) Select(*storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
+func (mockQuerier) Select(storage.SelectParams, ...*labels.Matcher) (storage.SeriesSet, storage.Warnings, error) {
 	return mockSeriesSet{}, nil, nil
 }
 
@@ -398,7 +398,7 @@ func TestRequiredLabelsQuerierSelect(t *testing.T) {
 			requiredMatchers: test.requiredMatchers,
 		}
 
-		have, _, err := q.Select(nil, test.matchers...)
+		have, _, err := q.Select(storage.SelectParams{}, test.matchers...)
 		if err != nil {
 			t.Error(err)
 		}

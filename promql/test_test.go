@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/prometheus/prometheus/pkg/labels"
+	"github.com/prometheus/prometheus/storage"
 
 	"github.com/prometheus/prometheus/util/testutil"
 )
@@ -133,7 +134,7 @@ func TestLazyLoader_WithSamplesTill(t *testing.T) {
 					}
 
 					// Get the series for the matcher.
-					ss, _, err := querier.Select(nil, matchers...)
+					ss, _, err := querier.Select(storage.SelectParams{}, matchers...)
 					testutil.Ok(t, err)
 					testutil.Assert(t, ss.Next(), "")
 					storageSeries := ss.At()
